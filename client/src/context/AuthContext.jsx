@@ -10,6 +10,9 @@ const initialState = {
   error: null
 };
 
+// API Base URL
+const API_URL = import.meta.env.VITE_API_URL;
+
 // Action types
 const AUTH_ACTIONS = {
   LOGIN_START: 'LOGIN_START',
@@ -102,180 +105,222 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     const user = localStorage.getItem('authUser');
-    
+
     if (token && user) {
       try {
         const parsedUser = JSON.parse(user);
+
         dispatch({
           type: AUTH_ACTIONS.LOAD_USER_SUCCESS,
           payload: { user: parsedUser, token }
         });
+
       } catch (error) {
         console.error('Failed to parse stored user:', error);
-        // Clear invalid stored data
+
         localStorage.removeItem('authToken');
         localStorage.removeItem('authUser');
       }
     }
   }, []);
 
-  // Action creators
+  // LOGIN
   const login = async (email, password) => {
     try {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
-      
+
       console.log('=== AUTH LOGIN ATTEMPT ===');
-      console.log('Email:', email);
-      
-      const response = await axios.post('http://localhost:8000/api/auth/login', {
-        email,
-        password
-      });
-      
+
+      const response = await axios.post(
+        `${API_URL}/api/auth/login`,
+        {
+          email,
+          password
+        }
+      );
+
       console.log('=== LOGIN RESPONSE ===');
-      console.log('Response:', response.data);
-      
+      console.log(response.data);
+
       const { access_token, user } = response.data;
-      
-      // Store in localStorage
+
       localStorage.setItem('authToken', access_token);
       localStorage.setItem('authUser', JSON.stringify(user));
-      
+
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
-        payload: { user, token: access_token }
+        payload: {
+          user,
+          token: access_token
+        }
       });
-      
-      console.log('=== LOGIN SUCCESSFUL ===');
-      console.log('User:', user);
-      
-      return { success: true, user };
-      
+
+      return {
+        success: true,
+        user
+      };
+
     } catch (error) {
+
       console.error('=== LOGIN ERROR ===');
-      console.error('Error:', error.response?.data || error.message);
-      
+      console.error(error.response?.data || error.message);
+
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAILURE,
-        payload: error.response?.data?.message || 'Login failed'
+        payload:
+          error.response?.data?.message || 'Login failed'
       });
-      
-      return { success: false, error: error.response?.data?.message || 'Login failed' };
-    }
-  };
 
-  const register = async (name, email, password, passwordConfirm) => {
-    try {
-      dispatch({ type: AUTH_ACTIONS.REGISTER_START });
-      
-      console.log('=== AUTH REGISTER ATTEMPT ===');
-      console.log('Name:', name);
-      console.log('Email:', email);
-      const response = await axios.post(
-  'http://localhost:8000/api/auth/register',
-  {
-    name,
-    email,
-    password,
-    password_confirm: passwordConfirm,
-  }
-);
-      
-      console.log('=== REGISTER RESPONSE ===');
-      console.log('Response:', response.data);
-      
-      const { access_token, user } = response.data;
-      
-      // Store in localStorage
-      localStorage.setItem('authToken', access_token);
-      localStorage.setItem('authUser', JSON.stringify(user));
-      
-      dispatch({
-        type: AUTH_ACTIONS.REGISTER_SUCCESS,
-        payload: { user, token: access_token }
-      });
-      
-      console.log('=== REGISTER SUCCESSFUL ===');
-      console.log('User:', user);
-      
-      return { success: true, user };
-      
-    } catch (error) {
-      console.error('=== REGISTER ERROR ===');
-      console.error('Error:', error.response?.data || error.message);
-      
-      dispatch({
-        type: AUTH_ACTIONS.REGISTER_FAILURE,
-        payload: error.response?.data?.message || 'Registration failed'
-      });
-      
-      return { success: false, error: error.response?.data?.message || 'Registration failed' };
-    }
-  };
-
-  const logout = () => {
-    console.log('=== AUTH LOGOUT ===');
-    
-    // Call backend logout
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      axios.post('http://localhost:8000/api/auth/logout')
-        .catch(error => {
-          console.error('Backend logout error:', error);
-        });
-    }
-    
-    // Clear localStorage
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('authUser');
-    
-    // Clear axios headers
-    delete axios.defaults.headers.common['Authorization'];
-    
-    dispatch({ type: AUTH_ACTIONS.LOGOUT });
-    
-    console.log('=== LOGOUT SUCCESSFUL ===');
-  };
-
-  const updateProfile = async (profileData) => {
-    try {
-      console.log('=== AUTH UPDATE PROFILE ATTEMPT ===');
-      console.log('Profile data:', profileData);
-      
-      const response = await axios.put('http://localhost:8000/api/users/profile', profileData);
-      
-      console.log('=== UPDATE PROFILE RESPONSE ===');
-      console.log('Response:', response.data);
-      
-      const updatedUser = response.data;
-      
-      // Update localStorage
-      localStorage.setItem('authUser', JSON.stringify(updatedUser));
-      
-      // Update context state
-      dispatch({
-        type: AUTH_ACTIONS.LOAD_USER_SUCCESS,
-        payload: { user: updatedUser, token: state.token }
-      });
-      
-      console.log('=== UPDATE PROFILE SUCCESSFUL ===');
-      console.log('Updated user:', updatedUser);
-      
-      return { success: true, user: updatedUser };
-      
-    } catch (error) {
-      console.error('=== UPDATE PROFILE ERROR ===');
-      console.error('Error:', error.response?.data || error.message);
-      
-      return { 
-        success: false, 
-        error: error.response?.data?.detail || 'Profile update failed' 
+      return {
+        success: false,
+        error:
+          error.response?.data?.message || 'Login failed'
       };
     }
   };
 
+  // REGISTER
+  const register = async (
+    name,
+    email,
+    password,
+    passwordConfirm
+  ) => {
+    try {
+
+      dispatch({
+        type: AUTH_ACTIONS.REGISTER_START
+      });
+
+      const response = await axios.post(
+        `${API_URL}/api/auth/register`,
+        {
+          name,
+          email,
+          password,
+          password_confirm: passwordConfirm
+        }
+      );
+
+      console.log('=== REGISTER RESPONSE ===');
+      console.log(response.data);
+
+      const { access_token, user } = response.data;
+
+      localStorage.setItem('authToken', access_token);
+      localStorage.setItem('authUser', JSON.stringify(user));
+
+      dispatch({
+        type: AUTH_ACTIONS.REGISTER_SUCCESS,
+        payload: {
+          user,
+          token: access_token
+        }
+      });
+
+      return {
+        success: true,
+        user
+      };
+
+    } catch (error) {
+
+      console.error('=== REGISTER ERROR ===');
+      console.error(error.response?.data || error.message);
+
+      dispatch({
+        type: AUTH_ACTIONS.REGISTER_FAILURE,
+        payload:
+          error.response?.data?.message ||
+          'Registration failed'
+      });
+
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          'Registration failed'
+      };
+    }
+  };
+
+  // LOGOUT
+  const logout = () => {
+
+    console.log('=== AUTH LOGOUT ===');
+
+    const token = localStorage.getItem('authToken');
+
+    if (token) {
+      axios.post(`${API_URL}/api/auth/logout`)
+        .catch(error => {
+          console.error('Backend logout error:', error);
+        });
+    }
+
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('authUser');
+
+    delete axios.defaults.headers.common['Authorization'];
+
+    dispatch({
+      type: AUTH_ACTIONS.LOGOUT
+    });
+
+    console.log('=== LOGOUT SUCCESSFUL ===');
+  };
+
+  // UPDATE PROFILE
+  const updateProfile = async (profileData) => {
+    try {
+
+      console.log('=== UPDATE PROFILE ATTEMPT ===');
+
+      const response = await axios.put(
+        `${API_URL}/api/users/profile`,
+        profileData
+      );
+
+      console.log(response.data);
+
+      const updatedUser = response.data;
+
+      localStorage.setItem(
+        'authUser',
+        JSON.stringify(updatedUser)
+      );
+
+      dispatch({
+        type: AUTH_ACTIONS.LOAD_USER_SUCCESS,
+        payload: {
+          user: updatedUser,
+          token: state.token
+        }
+      });
+
+      return {
+        success: true,
+        user: updatedUser
+      };
+
+    } catch (error) {
+
+      console.error('=== UPDATE PROFILE ERROR ===');
+
+      return {
+        success: false,
+        error:
+          error.response?.data?.detail ||
+          'Profile update failed'
+      };
+    }
+  };
+
+  // CLEAR ERROR
   const clearError = () => {
-    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+    dispatch({
+      type: AUTH_ACTIONS.CLEAR_ERROR
+    });
   };
 
   const value = {
@@ -297,12 +342,17 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// Custom hook to use auth context
+// Custom hook
 export const useAuth = () => {
+
   const context = useContext(AuthContext);
+
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error(
+      'useAuth must be used within an AuthProvider'
+    );
   }
+
   return context;
 };
 

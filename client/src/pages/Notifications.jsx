@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const notificationTypes = {
   new_match: { icon: Users, color: 'text-green-400', bgColor: 'bg-green-900', actionUrl: '/app/matches' },

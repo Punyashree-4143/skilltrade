@@ -94,11 +94,15 @@ const SwapRequestModal = ({ isOpen, onClose, targetUser }) => {
       console.log('requested_skill value:', swapRequestData.requested_skill);
 
       // Send to backend API with Authorization header (note trailing slash)
-      const response = await axios.post('http://localhost:8000/api/swaps/', swapRequestData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.post(
+  `${import.meta.env.VITE_API_URL}/api/swaps/`,
+  swapRequestData,
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+);
       
       if (response.data) {
         // Clear form

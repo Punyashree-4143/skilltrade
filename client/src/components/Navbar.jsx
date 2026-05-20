@@ -38,11 +38,14 @@ const Navbar = () => {
       }
 
       try {
-        const response = await axios.get('http://localhost:8000/api/notifications', {
-          headers: {
-            Authorization: `Bearer ${authToken}`
-          }
-        });
+  const response = await axios.get(
+    `${import.meta.env.VITE_API_URL}/api/notifications`,
+    {
+      headers: {
+        Authorization: `Bearer ${authToken}`
+      }
+    }
+  );
 
         const notifications = Array.isArray(response.data) ? response.data : [];
         setUnreadNotifications(

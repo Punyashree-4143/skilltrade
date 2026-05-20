@@ -5,7 +5,7 @@ import axios from 'axios';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useAuth } from '../context/AuthContext';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const avatarFallback = (name, size = 'large') => {
   const sizeClass = size === 'small' ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm';

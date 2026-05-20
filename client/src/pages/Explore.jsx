@@ -29,11 +29,12 @@ const Explore = () => {
       setLoading(true);
       console.log('=== FETCHING USERS FROM BACKEND ===');
 
-      try {
-        const response = await axios.get(
-          'http://localhost:8000/api/users'
-        );
-        
+      const API_URL = import.meta.env.VITE_API_URL;
+
+try {
+  const response = await axios.get(
+    `${API_URL}/api/users`
+  );
         console.log('=== USERS FETCHED SUCCESSFULLY ===');
         console.log('Response data:', response.data);
         console.log('Number of users:', response.data?.length || 0);

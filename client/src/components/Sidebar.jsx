@@ -34,15 +34,19 @@ const Sidebar = () => {
       if (!authToken) return;
 
       try {
-        const response = await axios.get('http://localhost:8000/api/dashboard/stats', {
-          headers: {
-            Authorization: `Bearer ${authToken}`
-          }
-        });
-        setStats(response.data || {});
-      } catch (error) {
-        console.error('Sidebar stats error:', error);
+  const response = await axios.get(
+    `${import.meta.env.VITE_API_URL}/api/dashboard/stats`,
+    {
+      headers: {
+        Authorization: `Bearer ${authToken}`
       }
+    }
+  );
+
+  setStats(response.data || {});
+} catch (error) {
+  console.error('Sidebar stats error:', error);
+}
     };
 
     loadStats();
