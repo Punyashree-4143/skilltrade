@@ -1,521 +1,443 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User, MapPin, AlertCircle, Plus, X } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  User,
+  ArrowRight,
+  Check,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { showToast } from '../components/ToastContainer';
-
-const skillCategories = [
-  'technology',
-  'creative', 
-  'business',
-  'education',
-  'health',
-  'lifestyle',
-  'other'
-];
 
 const Register = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    location: {
-      coordinates: [0, 0],
-      city: '',
-      country: ''
-    },
-    offers: [],
-    wants: []
+    passwordConfirm: '',
   });
+
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [currentSkill, setCurrentSkill] = useState({ skill: '', category: 'technology' });
-  const [currentWant, setCurrentWant] = useState({ skill: '', category: 'technology' });
-  const { register, loading, error } = useAuth();
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const { register, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setFormData(prev => ({
-            ...prev,
-            location: {
-              ...prev.location,
-              coordinates: [position.coords.longitude, position.coords.latitude]
-            }
-          }));
-        },
-        (error) => {
-          console.log('Geolocation error:', error);
-        }
-      );
+  // Redirect if already authenticated
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/app/dashboard');
     }
-  }, []);
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name.includes('.')) {
-      const [parent, child] = name.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value
-        }
-      }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+
+    console.log('Register input change:', { name, value });
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    if (error) {
+      setError('');
     }
   };
 
   const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formData.name) {
-      newErrors.name = 'Name is required';
-    } else if (formData.name.length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
+    if (!formData.name.trim()) {
+      setError('Name is required');
+      return false;
     }
-    
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
+
+    if (formData.name.length < 2) {
+      setError('Name must be at least 2 characters');
+      return false;
     }
-    
+
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      setError('Email is invalid');
+      return false;
+    }
+
     if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-      newErrors.password = 'Password must contain uppercase, lowercase, and number';
+      setError('Password is required');
+      return false;
     }
-    
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-    
-    if (!formData.location.city) {
-      newErrors.city = 'City is required';
-    }
-    
-    if (!formData.location.country) {
-      newErrors.country = 'Country is required';
-    }
-    
-    if (formData.offers.length === 0) {
-      newErrors.offers = 'Add at least one skill you can offer';
-    }
-    
-    if (formData.wants.length === 0) {
-      newErrors.wants = 'Add at least one skill you want to learn';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
-  const addOfferedSkill = () => {
-    if (currentSkill.skill.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        offers: [...prev.offers, currentSkill]
-      }));
-      setCurrentSkill({ skill: '', category: 'technology' });
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return false;
     }
-  };
 
-  const removeOfferedSkill = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      offers: prev.offers.filter((_, i) => i !== index)
-    }));
-  };
-
-  const addWantedSkill = () => {
-    if (currentWant.skill.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        wants: [...prev.wants, currentWant]
-      }));
-      setCurrentWant({ skill: '', category: 'technology' });
+    if (
+      !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)
+    ) {
+      setError(
+        'Password must contain uppercase, lowercase, and number'
+      );
+      return false;
     }
-  };
 
-  const removeWantedSkill = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      wants: prev.wants.filter((_, i) => i !== index)
-    }));
+    if (formData.password !== formData.passwordConfirm) {
+      setError('Passwords do not match');
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) return;
-    
-    const result = await register(formData);
-    
-    if (result.success) {
-      showToast('success', 'Registration successful! Welcome to SkillTrade.');
-      navigate('/app/dashboard');
-    } else {
-      showToast('error', result.error);
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      console.log('=== REGISTER SUBMIT ===');
+      console.log('Name:', formData.name);
+      console.log('Email:', formData.email);
+
+      const result = await register(
+        formData.name,
+        formData.email,
+        formData.password,
+        formData.passwordConfirm
+      );
+
+      if (result.success) {
+        console.log('=== REGISTER SUCCESSFUL ===');
+        console.log('User:', result.user);
+
+        navigate('/app/dashboard');
+      } else {
+        console.log('=== REGISTER FAILED ===');
+        console.log('Error:', result.error);
+
+        setError(result.error || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('=== REGISTER ERROR ===');
+      console.error('Error:', error);
+
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const getPasswordStrength = (password) => {
+    if (!password) {
+      return {
+        strength: 0,
+        color: 'text-gray-500',
+        label: 'Very Weak',
+      };
+    }
+
+    let strength = 0;
+
+    const checks = [
+      password.length >= 8,
+      /[a-z]/.test(password),
+      /[A-Z]/.test(password),
+      /\d/.test(password),
+    ];
+
+    strength = checks.filter(Boolean).length;
+
+    const colors = [
+      'text-red-500',
+      'text-orange-500',
+      'text-yellow-500',
+      'text-blue-500',
+      'text-green-500',
+    ];
+
+    const labels = [
+      'Very Weak',
+      'Weak',
+      'Fair',
+      'Good',
+      'Strong',
+    ];
+
+    return {
+      strength,
+      color: colors[Math.min(strength, 4)],
+      label: labels[Math.min(strength, 4)],
+    };
+  };
+
+  const passwordStrength = getPasswordStrength(formData.password);
+
   return (
-    <div className="min-h-screen py-8 px-4 bg-primary">
+    <div className="min-h-screen bg-gradient-to-br from-primary to-secondary flex items-center justify-center p-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-4xl mx-auto"
+        className="w-full max-w-md"
       >
-        <div className="glass-morphism p-8 rounded-2xl border border-gray-700">
-          {/* Logo and Title */}
+        <div className="glass-morphism p-8 rounded-2xl border border-gray-700 shadow-2xl">
+          {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-xl flex items-center justify-center mx-auto mb-4">
-              <span className="text-white font-bold text-2xl">ST</span>
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Join SkillTrade</h1>
-            <p className="text-gray-400">Start sharing your skills and learning from others</p>
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <h1 className="text-3xl font-bold text-white mb-2">
+                Create Account
+              </h1>
+
+              <p className="text-gray-400">
+                Join SkillTrade and start learning
+              </p>
+            </motion.div>
           </div>
 
-          {/* Error Display */}
+          {/* Error Message */}
           {error && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-4 bg-red-900/20 border border-red-700 rounded-lg flex items-center space-x-3"
+              className="mb-6 p-4 bg-red-900/20 border border-red-600 rounded-lg"
             >
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-              <span className="text-red-400 text-sm">{error}</span>
+              <p className="text-red-400 text-sm">{error}</p>
             </motion.div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Basic Information */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-4 py-3 bg-gray-800 border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${
-                      errors.name ? 'border-red-500' : 'border-gray-600'
-                    }`}
-                    placeholder="Enter your full name"
-                  />
-                </div>
-                {errors.name && (
-                  <p className="mt-2 text-sm text-red-400 flex items-center space-x-1">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>{errors.name}</span>
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-4 py-3 bg-gray-800 border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${
-                      errors.email ? 'border-red-500' : 'border-gray-600'
-                    }`}
-                    placeholder="Enter your email"
-                  />
-                </div>
-                {errors.email && (
-                  <p className="mt-2 text-sm text-red-400 flex items-center space-x-1">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>{errors.email}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Password Fields */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    autoComplete="new-password"
-                    className={`w-full pl-10 pr-12 py-3 bg-gray-800 border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${
-                      errors.password ? 'border-red-500' : 'border-gray-600'
-                    }`}
-                    placeholder="Create a password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p className="mt-2 text-sm text-red-400 flex items-center space-x-1">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>{errors.password}</span>
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    autoComplete="new-password"
-                    className={`w-full pl-10 pr-12 py-3 bg-gray-800 border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${
-                      errors.confirmPassword ? 'border-red-500' : 'border-gray-600'
-                    }`}
-                    placeholder="Confirm your password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                  >
-                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-                {errors.confirmPassword && (
-                  <p className="mt-2 text-sm text-red-400 flex items-center space-x-1">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>{errors.confirmPassword}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Location */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  <MapPin className="inline w-4 h-4 mr-1" />
-                  City
-                </label>
-                <input
-                  type="text"
-                  name="location.city"
-                  value={formData.location.city}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 bg-gray-800 border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${
-                    errors.city ? 'border-red-500' : 'border-gray-600'
-                  }`}
-                  placeholder="Enter your city"
-                />
-                {errors.city && (
-                  <p className="mt-2 text-sm text-red-400">{errors.city}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Country
-                </label>
-                <input
-                  type="text"
-                  name="location.country"
-                  value={formData.location.country}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 bg-gray-800 border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${
-                    errors.country ? 'border-red-500' : 'border-gray-600'
-                  }`}
-                  placeholder="Enter your country"
-                />
-                {errors.country && (
-                  <p className="mt-2 text-sm text-red-400">{errors.country}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Skills You Can Offer */}
+          {/* Register Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Skills You Can Offer
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-300 mb-2"
+              >
+                <User className="w-4 h-4 inline mr-2" />
+                Full Name
               </label>
-              <div className="flex gap-2 mb-3">
+
+              <input
+                id="name"
+                name="name"
+                type="text"
+                value={formData.name}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="John Doe"
+                required
+                autoComplete="name"
+                autoFocus
+              />
+            </div>
+
+            {/* Email */}
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-300 mb-2"
+              >
+                <Mail className="w-4 h-4 inline mr-2" />
+                Email Address
+              </label>
+
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="your@email.com"
+                required
+                autoComplete="email"
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-300 mb-2"
+              >
+                <Lock className="w-4 h-4 inline mr-2" />
+                Password
+              </label>
+
+              <div className="relative">
                 <input
-                  type="text"
-                  value={currentSkill.skill}
-                  onChange={(e) => setCurrentSkill({ ...currentSkill, skill: e.target.value })}
-                  className="flex-1 px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  placeholder="Enter a skill you can teach"
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 pr-12 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  placeholder="Create a strong password"
+                  required
+                  autoComplete="new-password"
                 />
-                <select
-                  value={currentSkill.category}
-                  onChange={(e) => setCurrentSkill({ ...currentSkill, category: e.target.value })}
-                  className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                >
-                  {skillCategories.map(cat => (
-                    <option key={cat} value={cat}>
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </option>
-                  ))}
-                </select>
+
                 <button
                   type="button"
-                  onClick={addOfferedSkill}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
+                  onClick={() =>
+                    setShowPassword(!showPassword)
+                  }
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                 >
-                  <Plus className="w-5 h-5" />
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {formData.offers.map((skill, index) => (
+
+              {formData.password && (
+                <div className="mt-2 flex items-center space-x-2">
+                  <div className="flex space-x-1">
+                    {[1, 2, 3, 4, 5].map((level) => (
+                      <div
+                        key={level}
+                        className={`h-1 w-8 rounded-full ${
+                          level <= passwordStrength.strength
+                            ? passwordStrength.color.replace(
+                                'text-',
+                                'bg-'
+                              )
+                            : 'bg-gray-600'
+                        }`}
+                      />
+                    ))}
+                  </div>
+
                   <span
-                    key={index}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-primary/20 text-primary rounded-full text-sm"
+                    className={`text-xs ${passwordStrength.color}`}
                   >
-                    {skill.skill}
-                    <button
-                      type="button"
-                      onClick={() => removeOfferedSkill(index)}
-                      className="hover:text-red-400 transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+                    {passwordStrength.label}
                   </span>
-                ))}
-              </div>
-              {errors.offers && (
-                <p className="mt-2 text-sm text-red-400">{errors.offers}</p>
+                </div>
               )}
             </div>
 
-            {/* Skills You Want */}
+            {/* Confirm Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Skills You Want to Learn
+              <label
+                htmlFor="passwordConfirm"
+                className="block text-sm font-medium text-gray-300 mb-2"
+              >
+                <Check className="w-4 h-4 inline mr-2" />
+                Confirm Password
               </label>
-              <div className="flex gap-2 mb-3">
+
+              <div className="relative">
                 <input
-                  type="text"
-                  value={currentWant.skill}
-                  onChange={(e) => setCurrentWant({ ...currentWant, skill: e.target.value })}
-                  className="flex-1 px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  placeholder="Enter a skill you want to learn"
+                  id="passwordConfirm"
+                  name="passwordConfirm"
+                  type={
+                    showPasswordConfirm
+                      ? 'text'
+                      : 'password'
+                  }
+                  value={formData.passwordConfirm}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 pr-12 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  placeholder="Confirm your password"
+                  required
+                  autoComplete="new-password"
                 />
-                <select
-                  value={currentWant.category}
-                  onChange={(e) => setCurrentWant({ ...currentWant, category: e.target.value })}
-                  className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                >
-                  {skillCategories.map(cat => (
-                    <option key={cat} value={cat}>
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </option>
-                  ))}
-                </select>
+
                 <button
                   type="button"
-                  onClick={addWantedSkill}
-                  className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/80 transition-colors"
+                  onClick={() =>
+                    setShowPasswordConfirm(
+                      !showPasswordConfirm
+                    )
+                  }
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                 >
-                  <Plus className="w-5 h-5" />
+                  {showPasswordConfirm ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {formData.wants.map((skill, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-secondary/20 text-secondary rounded-full text-sm"
-                  >
-                    {skill.skill}
-                    <button
-                      type="button"
-                      onClick={() => removeWantedSkill(index)}
-                      className="hover:text-red-400 transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              {errors.wants && (
-                <p className="mt-2 text-sm text-red-400">{errors.wants}</p>
-              )}
+
+              {formData.passwordConfirm &&
+                formData.password && (
+                  <div className="mt-2">
+                    {formData.password ===
+                    formData.passwordConfirm ? (
+                      <p className="text-green-400 text-xs flex items-center">
+                        <Check className="w-3 h-3 mr-1" />
+                        Passwords match
+                      </p>
+                    ) : (
+                      <p className="text-red-400 text-xs">
+                        Passwords do not match
+                      </p>
+                    )}
+                  </div>
+                )}
             </div>
 
             {/* Submit Button */}
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
-              className="w-full py-4 px-4 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              className="w-full bg-gradient-to-r from-primary to-secondary hover:shadow-lg text-white py-3 px-4 rounded-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
-                  <LoadingSpinner size="small" />
+                  <div className="w-5 h-5 border-2 border-t-white border-r-transparent animate-spin rounded-full"></div>
                   <span>Creating account...</span>
                 </>
               ) : (
-                'Create Account'
+                <>
+                  <span>Create Account</span>
+                  <ArrowRight className="w-5 h-5" />
+                </>
               )}
-            </button>
+            </motion.button>
           </form>
 
-          {/* Login Link */}
+          {/* Footer */}
           <div className="mt-8 text-center">
-            <p className="text-gray-400">
+            <p className="text-gray-400 text-sm">
               Already have an account?{' '}
-              <Link 
-                to="/login" 
-                className="text-primary hover:text-secondary font-medium transition-colors"
+              <Link
+                to="/login"
+                className="text-primary hover:text-primary/80 transition-colors font-medium"
               >
                 Sign in
               </Link>
             </p>
-          </div>
-        </div>
 
-        {/* Back to Home */}
-        <div className="mt-6 text-center">
-          <Link 
-            to="/" 
-            className="text-gray-400 hover:text-white transition-colors inline-flex items-center space-x-2"
-          >
-            <span>← Back to home</span>
-          </Link>
+            <p className="text-gray-500 text-xs mt-4">
+              By creating an account, you agree to our Terms
+              of Service and Privacy Policy
+            </p>
+          </div>
         </div>
       </motion.div>
     </div>

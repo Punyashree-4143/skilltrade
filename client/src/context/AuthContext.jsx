@@ -1,182 +1,281 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import axios from 'axios';
 
-const AuthContext = createContext();
+// Initial state
+const initialState = {
+  user: null,
+  token: null,
+  isAuthenticated: false,
+  loading: false,
+  error: null
+};
 
+// Action types
+const AUTH_ACTIONS = {
+  LOGIN_START: 'LOGIN_START',
+  LOGIN_SUCCESS: 'LOGIN_SUCCESS',
+  LOGIN_FAILURE: 'LOGIN_FAILURE',
+  LOGOUT: 'LOGOUT',
+  REGISTER_START: 'REGISTER_START',
+  REGISTER_SUCCESS: 'REGISTER_SUCCESS',
+  REGISTER_FAILURE: 'REGISTER_FAILURE',
+  LOAD_USER_START: 'LOAD_USER_START',
+  LOAD_USER_SUCCESS: 'LOAD_USER_SUCCESS',
+  LOAD_USER_FAILURE: 'LOAD_USER_FAILURE',
+  CLEAR_ERROR: 'CLEAR_ERROR'
+};
+
+// Reducer function
 const authReducer = (state, action) => {
   switch (action.type) {
-    case 'LOGIN_START':
+    case AUTH_ACTIONS.LOGIN_START:
+    case AUTH_ACTIONS.REGISTER_START:
+    case AUTH_ACTIONS.LOAD_USER_START:
       return {
         ...state,
         loading: true,
         error: null
       };
-    case 'LOGIN_SUCCESS':
+
+    case AUTH_ACTIONS.LOGIN_SUCCESS:
+    case AUTH_ACTIONS.REGISTER_SUCCESS:
+    case AUTH_ACTIONS.LOAD_USER_SUCCESS:
       return {
         ...state,
-        loading: false,
-        isAuthenticated: true,
         user: action.payload.user,
         token: action.payload.token,
+        isAuthenticated: true,
+        loading: false,
         error: null
       };
-    case 'LOGIN_FAILURE':
+
+    case AUTH_ACTIONS.LOGIN_FAILURE:
+    case AUTH_ACTIONS.REGISTER_FAILURE:
+    case AUTH_ACTIONS.LOAD_USER_FAILURE:
       return {
         ...state,
-        loading: false,
-        isAuthenticated: false,
         user: null,
         token: null,
+        isAuthenticated: false,
+        loading: false,
         error: action.payload
       };
-    case 'LOGOUT':
+
+    case AUTH_ACTIONS.LOGOUT:
       return {
         ...state,
-        isAuthenticated: false,
         user: null,
         token: null,
+        isAuthenticated: false,
         loading: false,
         error: null
       };
-    case 'UPDATE_USER':
-      return {
-        ...state,
-        user: { ...state.user, ...action.payload }
-      };
-    case 'SET_LOADING':
-      return {
-        ...state,
-        loading: action.payload
-      };
-    case 'SET_ERROR':
-      return {
-        ...state,
-        error: action.payload,
-        loading: false
-      };
-    case 'CLEAR_ERROR':
+
+    case AUTH_ACTIONS.CLEAR_ERROR:
       return {
         ...state,
         error: null
       };
+
     default:
       return state;
   }
 };
 
-const initialState = {
-  isAuthenticated: false,
-  user: null,
-  token: localStorage.getItem('token'),
-  loading: false,
-  error: null
-};
+// Create context
+const AuthContext = createContext();
 
+// Auth provider component
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
+  // Set up axios defaults when token changes
   useEffect(() => {
     if (state.token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${state.token}`;
-      verifyToken();
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  }, [state.token]);
+
+  // Load user from localStorage on mount
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    const user = localStorage.getItem('authUser');
+    
+    if (token && user) {
+      try {
+        const parsedUser = JSON.parse(user);
+        dispatch({
+          type: AUTH_ACTIONS.LOAD_USER_SUCCESS,
+          payload: { user: parsedUser, token }
+        });
+      } catch (error) {
+        console.error('Failed to parse stored user:', error);
+        // Clear invalid stored data
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('authUser');
+      }
     }
   }, []);
 
-  const verifyToken = async () => {
-    try {
-      const response = await axios.get('/api/auth/me');
-      dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: {
-          user: response.data.user,
-          token: state.token
-        }
-      });
-    } catch (error) {
-      localStorage.removeItem('token');
-      delete axios.defaults.headers.common['Authorization'];
-      dispatch({ type: 'LOGOUT' });
-    }
-  };
-
+  // Action creators
   const login = async (email, password) => {
-    dispatch({ type: 'LOGIN_START' });
-    
     try {
-      const response = await axios.post('/api/auth/login', {
+      dispatch({ type: AUTH_ACTIONS.LOGIN_START });
+      
+      console.log('=== AUTH LOGIN ATTEMPT ===');
+      console.log('Email:', email);
+      
+      const response = await axios.post('http://localhost:8000/api/auth/login', {
         email,
         password
       });
-
-      const { token, user } = response.data;
       
-      localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      console.log('=== LOGIN RESPONSE ===');
+      console.log('Response:', response.data);
+      
+      const { access_token, user } = response.data;
+      
+      // Store in localStorage
+      localStorage.setItem('authToken', access_token);
+      localStorage.setItem('authUser', JSON.stringify(user));
       
       dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: { user, token }
+        type: AUTH_ACTIONS.LOGIN_SUCCESS,
+        payload: { user, token: access_token }
       });
-
-      return { success: true };
+      
+      console.log('=== LOGIN SUCCESSFUL ===');
+      console.log('User:', user);
+      
+      return { success: true, user };
+      
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Login failed';
+      console.error('=== LOGIN ERROR ===');
+      console.error('Error:', error.response?.data || error.message);
+      
       dispatch({
-        type: 'LOGIN_FAILURE',
-        payload: errorMessage
+        type: AUTH_ACTIONS.LOGIN_FAILURE,
+        payload: error.response?.data?.message || 'Login failed'
       });
-      return { success: false, error: errorMessage };
+      
+      return { success: false, error: error.response?.data?.message || 'Login failed' };
     }
   };
 
-  const register = async (userData) => {
-    dispatch({ type: 'LOGIN_START' });
+  const register = async (name, email, password, passwordConfirm) => {
+    try {
+      dispatch({ type: AUTH_ACTIONS.REGISTER_START });
+      
+      console.log('=== AUTH REGISTER ATTEMPT ===');
+      console.log('Name:', name);
+      console.log('Email:', email);
+      const response = await axios.post(
+  'http://localhost:8000/api/auth/register',
+  {
+    name,
+    email,
+    password,
+    password_confirm: passwordConfirm,
+  }
+);
+      
+      console.log('=== REGISTER RESPONSE ===');
+      console.log('Response:', response.data);
+      
+      const { access_token, user } = response.data;
+      
+      // Store in localStorage
+      localStorage.setItem('authToken', access_token);
+      localStorage.setItem('authUser', JSON.stringify(user));
+      
+      dispatch({
+        type: AUTH_ACTIONS.REGISTER_SUCCESS,
+        payload: { user, token: access_token }
+      });
+      
+      console.log('=== REGISTER SUCCESSFUL ===');
+      console.log('User:', user);
+      
+      return { success: true, user };
+      
+    } catch (error) {
+      console.error('=== REGISTER ERROR ===');
+      console.error('Error:', error.response?.data || error.message);
+      
+      dispatch({
+        type: AUTH_ACTIONS.REGISTER_FAILURE,
+        payload: error.response?.data?.message || 'Registration failed'
+      });
+      
+      return { success: false, error: error.response?.data?.message || 'Registration failed' };
+    }
+  };
+
+  const logout = () => {
+    console.log('=== AUTH LOGOUT ===');
     
-    try {
-      const response = await axios.post('/auth/register', userData);
-      
-      const { token, user } = response.data;
-      
-      localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
-      dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: { user, token }
-      });
-
-      return { success: true };
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Registration failed';
-      dispatch({
-        type: 'LOGIN_FAILURE',
-        payload: errorMessage
-      });
-      return { success: false, error: errorMessage };
+    // Call backend logout
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      axios.post('http://localhost:8000/api/auth/logout')
+        .catch(error => {
+          console.error('Backend logout error:', error);
+        });
     }
+    
+    // Clear localStorage
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('authUser');
+    
+    // Clear axios headers
+    delete axios.defaults.headers.common['Authorization'];
+    
+    dispatch({ type: AUTH_ACTIONS.LOGOUT });
+    
+    console.log('=== LOGOUT SUCCESSFUL ===');
   };
 
-  const logout = async () => {
+  const updateProfile = async (profileData) => {
     try {
-      await axios.post('/api/auth/logout');
+      console.log('=== AUTH UPDATE PROFILE ATTEMPT ===');
+      console.log('Profile data:', profileData);
+      
+      const response = await axios.put('http://localhost:8000/api/users/profile', profileData);
+      
+      console.log('=== UPDATE PROFILE RESPONSE ===');
+      console.log('Response:', response.data);
+      
+      const updatedUser = response.data;
+      
+      // Update localStorage
+      localStorage.setItem('authUser', JSON.stringify(updatedUser));
+      
+      // Update context state
+      dispatch({
+        type: AUTH_ACTIONS.LOAD_USER_SUCCESS,
+        payload: { user: updatedUser, token: state.token }
+      });
+      
+      console.log('=== UPDATE PROFILE SUCCESSFUL ===');
+      console.log('Updated user:', updatedUser);
+      
+      return { success: true, user: updatedUser };
+      
     } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      localStorage.removeItem('token');
-      delete axios.defaults.headers.common['Authorization'];
-      dispatch({ type: 'LOGOUT' });
+      console.error('=== UPDATE PROFILE ERROR ===');
+      console.error('Error:', error.response?.data || error.message);
+      
+      return { 
+        success: false, 
+        error: error.response?.data?.detail || 'Profile update failed' 
+      };
     }
-  };
-
-  const updateUser = (userData) => {
-    dispatch({
-      type: 'UPDATE_USER',
-      payload: userData
-    });
   };
 
   const clearError = () => {
-    dispatch({ type: 'CLEAR_ERROR' });
+    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
   };
 
   const value = {
@@ -184,8 +283,11 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
-    updateUser,
-    clearError
+    updateProfile,
+    clearError,
+    isAuthenticated: state.isAuthenticated,
+    user: state.user,
+    token: state.token
   };
 
   return (
@@ -195,6 +297,7 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+// Custom hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -202,3 +305,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+export default AuthContext;

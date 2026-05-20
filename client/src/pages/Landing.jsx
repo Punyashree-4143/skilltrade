@@ -59,19 +59,19 @@ const Landing = () => {
       name: 'Sarah Chen',
       role: 'Web Developer',
       content: 'SkillTrade helped me learn guitar while teaching coding. Perfect skill exchange!',
-      avatar: '/api/placeholder/40/40'
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent('Sarah Chen')}&background=6366f1&color=fff&size=40`
     },
     {
       name: 'Mike Rodriguez',
       role: 'Photographer',
       content: 'Found amazing yoga instructor who wanted photography lessons. Win-win!',
-      avatar: '/api/placeholder/40/40'
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent('Mike Rodriguez')}&background=6366f1&color=fff&size=40`
     },
     {
       name: 'Emma Thompson',
       role: 'Marketing Expert',
       content: 'The matching algorithm is incredible. Found perfect language exchange partner.',
-      avatar: '/api/placeholder/40/40'
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent('Emma Thompson')}&background=6366f1&color=fff&size=40`
     }
   ];
 

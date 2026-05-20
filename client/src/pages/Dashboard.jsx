@@ -16,104 +16,90 @@ import {
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import SkillBadge from '../components/SkillBadge';
+import axios from 'axios';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [stats, setStats] = useState({
-    totalSwaps: 0,
-    completedSwaps: 0,
-    pendingRequests: 0,
-    unreadMessages: 0,
-    averageRating: 0
+    matches: 0,
+    total_swaps: 0,
+    pending_swaps: 0,
+    active_swaps: 0,
+    completed_swaps: 0,
+    cancelled_swaps: 0,
+    unread_messages: 0,
+    unread_notifications: 0,
+    profile_views: 0,
+    success_rate: 0
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate API calls - in real app these would be actual API calls
+    let isMounted = true;
+
     const loadDashboardData = async () => {
       try {
-        // Mock data - replace with actual API calls
-        setStats({
-          totalSwaps: 12,
-          completedSwaps: 8,
-          pendingRequests: 3,
-          unreadMessages: 5,
-          averageRating: 4.7
+        const authToken = token || localStorage.getItem('authToken');
+        if (!authToken) {
+          console.error('No auth token found');
+          setLoading(false);
+          return;
+        }
+
+        const response = await axios.get('http://localhost:8000/api/dashboard/stats', {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
         });
 
-        setRecentActivity([
-          {
-            id: 1,
-            type: 'swap_request',
-            message: 'Sarah Chen wants to learn React from you',
-            time: '2 hours ago',
-            avatar: '/api/placeholder/40/40'
-          },
-          {
-            id: 2,
-            type: 'message',
-            message: 'New message from Mike Rodriguez',
-            time: '5 hours ago',
-            avatar: '/api/placeholder/40/40'
-          },
-          {
-            id: 3,
-            type: 'swap_completed',
-            message: 'You completed a skill swap with Emma Thompson',
-            time: '1 day ago',
-            avatar: '/api/placeholder/40/40'
+        const activitiesResponse = await axios.get('http://localhost:8000/api/dashboard/activities', {
+          headers: {
+            Authorization: `Bearer ${authToken}`
           }
-        ]);
+        });
 
-        setMatches([
-          {
-            id: 1,
-            name: 'Alex Johnson',
-            avatar: '/api/placeholder/60/60',
-            matchScore: 95,
-            offeredSkills: ['Guitar', 'Music Theory'],
-            wantedSkills: ['Web Development'],
-            distance: '2.5 km'
-          },
-          {
-            id: 2,
-            name: 'Maria Garcia',
-            avatar: '/api/placeholder/60/60',
-            matchScore: 88,
-            offeredSkills: ['Spanish', 'Translation'],
-            wantedSkills: ['English Conversation'],
-            distance: '5.1 km'
+        const matchesResponse = await axios.get('http://localhost:8000/api/dashboard/top-matches', {
+          headers: {
+            Authorization: `Bearer ${authToken}`
           }
-        ]);
+        });
+
+        if (!isMounted) return;
+
+        setStats(response.data || {});
+        setRecentActivity(activitiesResponse.data || []);
+        setMatches(matchesResponse.data || []);
       } catch (error) {
         console.error('Dashboard data loading error:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     loadDashboardData();
-  }, []);
+    window.addEventListener('notifications:changed', loadDashboardData);
+    const intervalId = setInterval(loadDashboardData, 30000);
 
-  const StatCard = ({ icon: Icon, label, value, color, change }) => (
+    return () => {
+      isMounted = false;
+      window.removeEventListener('notifications:changed', loadDashboardData);
+      clearInterval(intervalId);
+    };
+  }, [token]);
+
+  const StatCard = ({ icon: Icon, label, value, color }) => (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: 0.1 }}
       className="glass-morphism p-6 rounded-xl border border-gray-700"
     >
       <div className="flex items-center justify-between mb-4">
         <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${color}`}>
           <Icon className="w-6 h-6 text-white" />
         </div>
-        {change && (
-          <span className={`text-sm font-medium ${
-            change > 0 ? 'text-green-400' : 'text-red-400'
-          }`}>
-            {change > 0 ? '+' : ''}{change}%
-          </span>
-        )}
       </div>
       <div className="text-2xl font-bold text-white mb-1">{value}</div>
       <div className="text-gray-400 text-sm">{label}</div>
@@ -150,7 +136,7 @@ const Dashboard = () => {
               <div className="text-sm text-gray-400">Your Rating</div>
               <div className="flex items-center space-x-1">
                 <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                <span className="text-xl font-bold text-white">{stats.averageRating}</span>
+                <span className="text-xl font-bold text-white">-</span>
               </div>
             </div>
             <div className="text-right">
@@ -168,31 +154,27 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           icon={Calendar}
-          label="Total Swaps"
-          value={stats.totalSwaps}
+          label="Active Swaps"
+          value={stats.active_swaps || 0}
           color="bg-primary"
-          change={12}
         />
         <StatCard
           icon={CheckCircle}
           label="Completed"
-          value={stats.completedSwaps}
+          value={stats.completed_swaps || 0}
           color="bg-green-600"
-          change={8}
         />
         <StatCard
           icon={Target}
           label="Pending Requests"
-          value={stats.pendingRequests}
+          value={stats.pending_swaps || 0}
           color="bg-yellow-600"
-          change={-5}
         />
         <StatCard
-          icon={MessageSquare}
-          label="Unread Messages"
-          value={stats.unreadMessages}
+          icon={TrendingUp}
+          label="Success Rate"
+          value={`${stats.success_rate || 0}%`}
           color="bg-secondary"
-          change={15}
         />
       </div>
 
@@ -218,26 +200,40 @@ const Dashboard = () => {
             <div className="space-y-4">
               {recentActivity.map((activity, index) => (
                 <motion.div
-                  key={activity.id}
+                  key={activity.swap_id || index}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                   className="flex items-start space-x-4 p-4 rounded-lg hover:bg-gray-800/50 transition-colors cursor-pointer"
                 >
                   <img
-                    src={activity.avatar}
-                    alt="User"
+                    src={activity.other_user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(activity.other_user?.name || 'User')}&background=6366f1&color=fff&size=40`}
+                    alt={activity.other_user?.name || 'User'}
                     className="w-10 h-10 rounded-full"
                   />
                   <div className="flex-1">
                     <p className="text-white text-sm">{activity.message}</p>
                     <div className="flex items-center space-x-2 mt-1">
                       <Clock className="w-3 h-3 text-gray-500" />
-                      <span className="text-gray-500 text-xs">{activity.time}</span>
+                      <span className="text-gray-500 text-xs">
+                        {new Date(activity.timestamp).toLocaleString()}
+                      </span>
                     </div>
                   </div>
-                  {activity.type === 'swap_request' && (
+                  {activity.type.includes('swap_sent') && (
+                    <AlertCircle className="w-5 h-5 text-blue-400" />
+                  )}
+                  {activity.type.includes('swap_received') && (
                     <AlertCircle className="w-5 h-5 text-yellow-400" />
+                  )}
+                  {activity.type.includes('accepted') && (
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                  )}
+                  {activity.type.includes('completed') && (
+                    <CheckCircle className="w-5 h-5 text-blue-400" />
+                  )}
+                  {activity.type.includes('cancelled') && (
+                    <X className="w-5 h-5 text-red-400" />
                   )}
                 </motion.div>
               ))}
@@ -273,7 +269,7 @@ const Dashboard = () => {
                 >
                   <div className="flex items-center space-x-3 mb-3">
                     <img
-                      src={match.avatar}
+                      src={match.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(match.name)}&background=6366f1&color=fff&size=60`}
                       alt={match.name}
                       className="w-12 h-12 rounded-full"
                     />
@@ -281,27 +277,32 @@ const Dashboard = () => {
                       <div className="flex items-center space-x-2">
                         <h3 className="font-medium text-white">{match.name}</h3>
                         <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full">
-                          {match.matchScore}% match
+                          {match.match_score}% match
                         </span>
                       </div>
                       <div className="flex items-center space-x-1 text-gray-400 text-xs">
                         <MapPin className="w-3 h-3" />
-                        <span>{match.distance}</span>
+                        <span>{match.location?.city || 'Location not set'}</span>
                       </div>
                     </div>
                   </div>
                   
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-1">
-                      {match.offeredSkills.slice(0, 2).map((skill, i) => (
+                      {match.skills_offered?.slice(0, 2).map((skill, i) => (
                         <SkillBadge key={i} skill={skill} variant="offered" size="sm" />
                       ))}
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {match.wantedSkills.slice(0, 2).map((skill, i) => (
+                      {match.skills_wanted?.slice(0, 2).map((skill, i) => (
                         <SkillBadge key={i} skill={skill} variant="wanted" size="sm" />
                       ))}
                     </div>
+                    {match.matching_skills && match.matching_skills.length > 0 && (
+                      <div className="text-xs text-green-400">
+                        Matching skills: {match.matching_skills.join(', ')}
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               ))}

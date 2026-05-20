@@ -50,15 +50,15 @@ const Profile = () => {
               <div>
                 <h3 className="text-lg font-semibold text-white mb-3">Skills I Can Offer</h3>
                 <div className="flex flex-wrap gap-2">
-                  {user?.offers?.map((offer, index) => (
+                  {user?.skills_offered?.map((skill, index) => (
                     <span
                       key={index}
                       className="px-3 py-1 bg-primary/20 text-primary rounded-full text-sm"
                     >
-                      {offer.skill}
+                      {skill}
                     </span>
                   ))}
-                  {(!user?.offers || user.offers.length === 0) && (
+                  {(!user?.skills_offered || user.skills_offered.length === 0) && (
                     <p className="text-gray-400">No skills added yet</p>
                   )}
                 </div>
@@ -67,15 +67,15 @@ const Profile = () => {
               <div>
                 <h3 className="text-lg font-semibold text-white mb-3">Skills I Want to Learn</h3>
                 <div className="flex flex-wrap gap-2">
-                  {user?.wants?.map((want, index) => (
+                  {user?.skills_wanted?.map((skill, index) => (
                     <span
                       key={index}
                       className="px-3 py-1 bg-secondary/20 text-secondary rounded-full text-sm"
                     >
-                      {want.skill}
+                      {skill}
                     </span>
                   ))}
-                  {(!user?.wants || user.wants.length === 0) && (
+                  {(!user?.skills_wanted || user.skills_wanted.length === 0) && (
                     <p className="text-gray-400">No skills added yet</p>
                   )}
                 </div>

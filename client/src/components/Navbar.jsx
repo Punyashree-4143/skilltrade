@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 import { 
   Search, 
   Bell, 
@@ -19,13 +20,49 @@ import { useAuth } from '../context/AuthContext';
 import NotificationBadge from './NotificationBadge';
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const isAppRoute = location.pathname.startsWith('/app');
+
+  useEffect(() => {
+    const loadNotificationCount = async () => {
+      const authToken = token || localStorage.getItem('authToken');
+      if (!authToken || !isAppRoute) {
+        setUnreadNotifications(0);
+        return;
+      }
+
+      try {
+        const response = await axios.get('http://localhost:8000/api/notifications', {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        });
+
+        const notifications = Array.isArray(response.data) ? response.data : [];
+        setUnreadNotifications(
+          notifications.filter(notification => !notification.is_read).length
+        );
+      } catch (error) {
+        console.error('Notification count error:', error);
+        setUnreadNotifications(0);
+      }
+    };
+
+    loadNotificationCount();
+    window.addEventListener('notifications:changed', loadNotificationCount);
+    const intervalId = setInterval(loadNotificationCount, 30000);
+
+    return () => {
+      window.removeEventListener('notifications:changed', loadNotificationCount);
+      clearInterval(intervalId);
+    };
+  }, [token, isAppRoute, location.pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -55,14 +92,11 @@ const Navbar = () => {
               <Link to="/about" className="text-gray-300 hover:text-white transition-colors">
                 About
               </Link>
-              <Link to="/login" className="text-gray-300 hover:text-white transition-colors">
-                Login
-              </Link>
               <Link 
-                to="/register" 
+                to="/login" 
                 className="bg-gradient-to-r from-primary to-secondary text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all"
               >
-                Sign Up
+                Sign In
               </Link>
             </div>
 
@@ -84,14 +118,11 @@ const Navbar = () => {
                 <Link to="/about" className="text-gray-300 hover:text-white transition-colors">
                   About
                 </Link>
-                <Link to="/login" className="text-gray-300 hover:text-white transition-colors">
-                  Login
-                </Link>
                 <Link 
-                  to="/register" 
+                  to="/login" 
                   className="bg-gradient-to-r from-primary to-secondary text-white px-4 py-2 rounded-lg text-center"
                 >
-                  Sign Up
+                  Sign In
                 </Link>
               </div>
             </motion.div>
@@ -141,7 +172,7 @@ const Navbar = () => {
 
             <Link to="/app/notifications" className="relative">
               <Bell className="w-5 h-5 text-gray-300 hover:text-white transition-colors" />
-              <NotificationBadge />
+              <NotificationBadge count={unreadNotifications} />
             </Link>
 
             <Link to="/app/messages" className="relative">

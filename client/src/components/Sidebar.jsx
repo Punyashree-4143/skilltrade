@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 import { 
   Home, 
   Users, 
@@ -15,22 +16,64 @@ import {
 import { useAuth } from '../context/AuthContext';
 
 const Sidebar = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const location = useLocation();
+  const [stats, setStats] = useState({
+    matches: 0,
+    pending_swaps: 0,
+    active_swaps: 0,
+    unread_messages: 0,
+    unread_notifications: 0,
+    profile_views: 0,
+    success_rate: 0
+  });
+
+  useEffect(() => {
+    const loadStats = async () => {
+      const authToken = token || localStorage.getItem('authToken');
+      if (!authToken) return;
+
+      try {
+        const response = await axios.get('http://localhost:8000/api/dashboard/stats', {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        });
+        setStats(response.data || {});
+      } catch (error) {
+        console.error('Sidebar stats error:', error);
+      }
+    };
+
+    loadStats();
+    window.addEventListener('notifications:changed', loadStats);
+    const intervalId = setInterval(loadStats, 30000);
+
+    return () => {
+      window.removeEventListener('notifications:changed', loadStats);
+      clearInterval(intervalId);
+    };
+  }, [token]);
+
+  const badgeValue = (value) => {
+    const count = Number(value || 0);
+    return count > 0 ? String(count) : null;
+  };
 
   const menuItems = [
     { icon: Home, label: 'Dashboard', path: '/app/dashboard', badge: null },
     { icon: Users, label: 'Explore', path: '/app/explore', badge: null },
-    { icon: Target, label: 'Matches', path: '/app/matches', badge: '3' },
-    { icon: Calendar, label: 'Swaps', path: '/app/swaps', badge: '2' },
-    { icon: MessageSquare, label: 'Messages', path: '/app/messages', badge: '5' },
-    { icon: Bell, label: 'Notifications', path: '/app/notifications', badge: '1' },
+    { icon: Target, label: 'Matches', path: '/app/matches', badge: badgeValue(stats.matches) },
+    { icon: Calendar, label: 'Swaps', path: '/app/swaps', badge: badgeValue((stats.pending_swaps || 0) + (stats.active_swaps || 0)) },
+    { icon: MessageSquare, label: 'Messages', path: '/app/messages', badge: badgeValue(stats.unread_messages) },
+    { icon: Bell, label: 'Notifications', path: '/app/notifications', badge: badgeValue(stats.unread_notifications) },
   ];
 
   const quickStats = [
-    { label: 'Profile Views', value: '24', icon: TrendingUp },
-    { label: 'Active Swaps', value: '3', icon: Calendar },
-    { label: 'Success Rate', value: '92%', icon: Target },
+    { label: 'Profile Views', value: String(stats.profile_views || 0), icon: TrendingUp },
+    { label: 'Active Swaps', value: String(stats.active_swaps || 0), icon: Calendar },
+    { label: 'Success Rate', value: `${stats.success_rate || 0}%`, icon: Target },
+    { label: 'Pending Swaps', value: String(stats.pending_swaps || 0), icon: Calendar },
   ];
 
   return (
