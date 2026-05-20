@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting SkillTrade FastAPI Backend...")
+    
     try:
         logger.info("Initializing database...")
         await init_db()
@@ -50,7 +51,6 @@ app = FastAPI(
 )
 
 
-
 # Middleware
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
@@ -62,10 +62,17 @@ async def add_process_time_header(request: Request, call_next):
 
 
 # CORS middleware
+origins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://localhost:5176",
+    "https://skilltrade-eight.vercel.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174","http://localhost:5175",
-    "http://localhost:5176",],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -131,6 +138,7 @@ app.include_router(dashboard.router, tags=["Dashboard"])
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
