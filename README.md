@@ -55,5 +55,5 @@ uvicorn app.main:app --reload
 
 👨‍💻 Author
 
-Punyashree B
+Punyashree 
 MCA Student | Full Stack Developer
