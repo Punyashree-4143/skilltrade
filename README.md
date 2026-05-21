@@ -36,17 +36,21 @@ API Docs:
 https://skilltrade-kepu.onrender.com/docs
 
 
-⚙️ Local Setup
+## ⚙️ Local Setup
 
-Frontend
+### Frontend
+```bash
 cd client
 npm install
 npm run dev
+```
 
-Backend
+### Backend
+```bash
 cd python-backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+```
 
 
 👨‍💻 Author
